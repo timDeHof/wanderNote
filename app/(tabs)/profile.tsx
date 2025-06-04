@@ -87,8 +87,8 @@ export default function ProfileScreen() {
     );
   };
 
-  // Mock avatar URL - in a real app, this would be from the user profile
-  const avatarUrl = user?.photoURL || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg';
+  // Use a local default avatar or placeholder service
+  const avatarUrl = user?.photoURL || require('@/assets/images/default-avatar.png');
 
   return (
     <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>

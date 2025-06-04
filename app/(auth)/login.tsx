@@ -5,7 +5,7 @@ import Colors from '@/utils/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import { Globe, Lock, Mail } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Platform,
   ScrollView,
@@ -17,6 +17,9 @@ import {
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,10 +27,15 @@ export default function Login() {
   const { signIn, signInWithGoogle, loading } = useAuth();
   const router = useRouter();
   const { theme } = useTheme();
-
-  const handleLogin = async () => {
+  
+  const handleLogin = useCallback(async () => {
     if (!email || !password) {
       setError('Email and password are required');
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -38,16 +46,16 @@ export default function Login() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login');
     }
-  };
+  }, [email, password, signIn, router]);
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = useCallback(async () => {
     try {
       await signInWithGoogle();
       router.replace('/(tabs)');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login with Google');
     }
-  };
+  }, [signInWithGoogle, router]);
 
   return (
     <ScrollView
@@ -97,6 +105,9 @@ export default function Login() {
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            returnKeyType="next"
+            importantForAutofill="yes"
+            autoComplete="email"
           />
         </View>
 
@@ -115,6 +126,10 @@ export default function Login() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            returnKeyType="done"
+            importantForAutofill="yes"
+            autoComplete="password"
+            onSubmitEditing={handleLogin}
           />
         </View>
 

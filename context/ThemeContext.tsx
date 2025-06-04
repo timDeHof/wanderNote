@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useEffect, useState } from 'react';
+import { useColorScheme, View } from 'react-native';
 
 type ThemeType = 'light' | 'dark';
 
@@ -12,8 +12,8 @@ interface ThemeContextType {
 
 export const ThemeContext = createContext<ThemeContextType>({
   theme: 'light',
-  toggleTheme: () => {},
-  setThemeOverride: () => {},
+  toggleTheme: () => { },
+  setThemeOverride: () => { },
 });
 
 interface ThemeProviderProps {
@@ -24,7 +24,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const deviceTheme = useColorScheme() as ThemeType;
   const [themeOverride, setThemeOverride] = useState<ThemeType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Get the effective theme
   const theme: ThemeType = themeOverride || deviceTheme || 'light';
 
@@ -37,12 +37,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
           setThemeOverride(storedTheme as ThemeType);
         }
       } catch (err) {
-        console.error('Failed to load theme preference:', err);
+        console.error('ThemeProvider: Failed to load theme preference from AsyncStorage:', err);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     loadThemePreference();
   }, []);
 
@@ -50,7 +50,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const toggleTheme = async () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setThemeOverride(newTheme);
-    
+
     try {
       await AsyncStorage.setItem('themePreference', newTheme);
     } catch (err) {
@@ -61,7 +61,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Set theme override explicitly
   const handleSetThemeOverride = async (newTheme: ThemeType | null) => {
     setThemeOverride(newTheme);
-    
+
     try {
       if (newTheme) {
         await AsyncStorage.setItem('themePreference', newTheme);
@@ -74,8 +74,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   if (isLoading) {
-    // You could return a loading screen here if needed
-    return null;
+    return (
+      <View style={{ flex: 1, backgroundColor: deviceTheme === 'dark' ? '#000' : '#fff' }}>
+        {children}
+      </View>
+    );
   }
 
   return (

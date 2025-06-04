@@ -10,7 +10,7 @@ export default function TabLayout() {
 
   // If there's no authenticated user, redirect to the login page
   if (!user) {
-    return <Redirect href={"/(auth)/login" as any} />;
+    return <Redirect href="/(auth)/login" />;
   }
 
   const tabBarActiveTintColor = Colors[theme].primary;

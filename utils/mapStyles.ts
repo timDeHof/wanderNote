@@ -1,10 +1,24 @@
-// Map styles for dark mode
+// Map styles for different themes
+const DARK_MAP_COLORS = {
+  background: '#242f3e',
+  textFill: '#746855',
+  textStroke: '#242f3e',
+  locality: '#d59563',
+  park: '#263c3f',
+  parkText: '#6b9a76',
+  road: '#38414e',
+  roadStroke: '#212a37',
+  highway: '#746855',
+  water: '#17263c',
+  // ... other colors
+} as const;
+
 export const getDarkMapStyle = () => [
   {
     "elementType": "geometry",
     "stylers": [
       {
-        "color": "#242f3e"
+        "color": DARK_MAP_COLORS.background
       }
     ]
   },
@@ -159,4 +173,4 @@ export const getDarkMapStyle = () => [
       }
     ]
   }
-];
+] as const;

@@ -1,16 +1,15 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-} from 'react-native';
+import Button from '@/components/ui/Button';
 import { useTheme } from '@/hooks/useTheme';
 import Colors from '@/utils/colors';
 import { AlertTriangle } from 'lucide-react-native';
-import Button from '@/components/ui/Button';
+import React from 'react';
+import {
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 type DeleteConfirmationModalProps = {
   visible: boolean;

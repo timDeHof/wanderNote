@@ -68,11 +68,13 @@ const Button: React.FC<ButtonProps> = ({
     switch (variant) {
       case 'outline':
         return {
-          color: disabled ? Colors[theme].textSecondary : Colors[theme].primary,
+          color: disabled ? Colors[theme]?.textSecondary || '#999' : Colors[theme]?.primary || '#007AFF',
         };
       default:
         return {
-          color: '#FFFFFF',
+          color: isDark || variant === 'primary' || variant === 'danger'
+            ? '#FFFFFF'
+            : Colors[theme].text,
         };
     }
   };
@@ -131,10 +133,10 @@ const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.8}
     >
       {isLoading ? (
-        <ActivityIndicator color="#FFFFFF\" size="small" />
+        <ActivityIndicator color="#FFFFFF" size="small" />
       ) : (
         <>
-          {icon && <View style={styles.iconContainer}>{icon}</View>}
+          {icon && !isLoading && <View style={styles.iconContainer}>{icon}</View>}
           <Text
             style={[
               styles.text,

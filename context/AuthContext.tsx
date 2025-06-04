@@ -1,10 +1,13 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import * as Google from 'expo-auth-session/providers/google';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import React, { createContext, useCallback, useEffect, useState } from 'react';
 
 // Initialize WebBrowser
 WebBrowser.maybeCompleteAuthSession();
+
+// Email validation regex
+const EMAIL_REGEX = /\S+@\S+\.\S+/;
 
 // Mock Firebase Auth User Interface
 interface User {
@@ -29,11 +32,11 @@ export const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: false,
   error: null,
-  signIn: async () => {},
-  signUp: async () => {},
-  signOut: async () => {},
-  signInWithGoogle: async () => {},
-  resetError: () => {},
+  signIn: async () => { },
+  signUp: async () => { },
+  signOut: async () => { },
+  signInWithGoogle: async () => { },
+  resetError: () => { },
 });
 
 interface AuthProviderProps {
@@ -47,12 +50,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
 
   // Mock Google OAuth configuration
-  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    clientId: 'YOUR_EXPO_CLIENT_ID', // Changed from expoClientId to clientId
+  const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    clientId: 'YOUR_EXPO_CLIENT_ID',
     iosClientId: 'YOUR_IOS_CLIENT_ID',
     androidClientId: 'YOUR_ANDROID_CLIENT_ID',
     webClientId: 'YOUR_WEB_CLIENT_ID',
   });
+
+  const handleSuccessfulAuth = useCallback(async (userData: User) => {
+    try {
+      await SecureStore.setItemAsync('user', JSON.stringify(userData));
+      setUser(userData);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to save user to storage:', err);
+      setError('Failed to authenticate');
+    }
+  }, []);
 
   // Load user from secure storage on app start
   useEffect(() => {
@@ -61,7 +75,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userJSON = await SecureStore.getItemAsync('user');
         if (userJSON) {
           const userData = JSON.parse(userJSON);
-          setUser(userData);
+          // Validate user data structure
+          if (userData && typeof userData === 'object' && userData.uid && userData.email) {
+            setUser(userData);
+          } else {
+            console.warn('Invalid user data in storage, clearing...');
+            await SecureStore.deleteItemAsync('user');
+          }
         }
       } catch (err) {
         console.error('Failed to load user from storage:', err);
@@ -89,24 +109,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         handleSuccessfulAuth(mockGoogleUser);
+        setLoading(false);
       }
     }
-  }, [googleResponse]);
+  }, [googleResponse, handleSuccessfulAuth]);
 
-  const handleSuccessfulAuth = async (userData: User) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
-      await SecureStore.setItemAsync('user', JSON.stringify(userData));
-      setUser(userData);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to save user to storage:', err);
-      setError('Failed to authenticate');
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    try {
+      if (!email || !password) {
+        setError('Email and password are required');
+        return;
+      }
+      if (!EMAIL_REGEX.test(email)) {
+        setError('Please enter a valid email address');
+        return;
+      }
       setLoading(true);
+      
       // In a real app, we would call Firebase Auth here
       // For now, we'll just mock a successful response
       if (email === 'test@example.com' && password === 'password') {
@@ -126,9 +145,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleSuccessfulAuth]);
 
-  const signUp = async (name: string, email: string, password: string) => {
+  const signUp = useCallback(async (name: string, email: string, password: string) => {
     try {
       setLoading(true);
       // In a real app, we would call Firebase Auth here
@@ -145,9 +164,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleSuccessfulAuth]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       setLoading(true);
       // In a real app, we would call Firebase Auth here
@@ -158,21 +177,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     try {
       setLoading(true);
       await promptGoogleAsync();
+      // Note: loading state will be reset to false in the useEffect that handles googleResponse
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
       setLoading(false);
     }
-  };
+  }, [promptGoogleAsync]);
 
-  const resetError = () => {
+  const resetError = useCallback(() => {
     setError(null);
-  };
+  }, []);
 
   return (
     <AuthContext.Provider

@@ -1,7 +1,6 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateId } from '@/utils/helpers';
-import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 
 // Define the Log type
 export interface Log {
@@ -35,12 +34,12 @@ export const LogsContext = createContext<LogsContextType>({
   logs: [],
   loading: false,
   error: null,
-  addLog: async () => {},
-  updateLog: async () => {},
-  deleteLog: async () => {},
+  addLog: async () => { },
+  updateLog: async () => { },
+  deleteLog: async () => { },
   getLogById: () => null,
   getLogsByUser: () => [],
-  refreshLogs: async () => {},
+  refreshLogs: async () => { },
 });
 
 interface LogsProviderProps {
@@ -103,13 +102,13 @@ export const LogsProvider: React.FC<LogsProviderProps> = ({ children }) => {
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Load logs from storage on app start
   useEffect(() => {
     const loadLogs = async () => {
       try {
         const storedLogs = await AsyncStorage.getItem('logs');
-        
+
         if (storedLogs) {
           setLogs(JSON.parse(storedLogs));
         } else {
@@ -124,39 +123,71 @@ export const LogsProvider: React.FC<LogsProviderProps> = ({ children }) => {
         setLoading(false);
       }
     };
-    
+
     loadLogs();
   }, []);
-  
+
+  // Validate log data against the Log interface
+  const validateLog = (log: Omit<Log, 'id'>): string | null => {
+    if (!log.title?.trim()) return 'Title is required';
+    if (!log.description?.trim()) return 'Description is required';
+    if (!log.location?.trim()) return 'Location is required';
+    if (typeof log.latitude !== 'number') return 'Valid latitude is required';
+    if (typeof log.longitude !== 'number') return 'Valid longitude is required';
+    if (!log.date) return 'Date is required';
+    if (typeof log.rating !== 'number' || log.rating < 1 || log.rating > 5) {
+      return 'Rating must be a number between 1 and 5';
+    }
+    if (!Array.isArray(log.images)) return 'Images must be an array';
+    if (!Array.isArray(log.tags)) return 'Tags must be an array';
+    if (!log.userId?.trim()) return 'User ID is required';
+
+    return null;
+  };
+
   // Add a new log
   const addLog = useCallback(async (log: Omit<Log, 'id'>) => {
+    setError(null);
+    setLoading(true);
+
     try {
-      setLoading(true);
+      // Validate the incoming log data
+      const validationError = validateLog(log);
+      if (validationError) {
+        throw new Error(validationError);
+      }
+
       const newLog: Log = {
         ...log,
         id: generateId(),
       };
-      
+
       const updatedLogs = [...logs, newLog];
       setLogs(updatedLogs);
-      
+
       await AsyncStorage.setItem('logs', JSON.stringify(updatedLogs));
-    } catch (err) {
-      setError('Failed to add log');
-      throw err;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add log';
+      setError(errorMessage);
+      throw error;
     } finally {
       setLoading(false);
     }
   }, [logs]);
-  
+
   // Update an existing log
   const updateLog = useCallback(async (id: string, updatedData: Partial<Log>) => {
+    setError(null);
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      
-      const updatedLogs = logs.map(log => 
-        log.id === id ? { ...log, ...updatedData } : log
-      );
+      const logIndex = logs.findIndex(log => log.id === id);
+      if (logIndex === -1) {
+        throw new Error('Log not found');
+      }
+
+      const updatedLogs = [...logs];
+      updatedLogs[logIndex] = { ...updatedLogs[logIndex], ...updatedData };
       
       setLogs(updatedLogs);
       await AsyncStorage.setItem('logs', JSON.stringify(updatedLogs));
@@ -167,15 +198,14 @@ export const LogsProvider: React.FC<LogsProviderProps> = ({ children }) => {
       setLoading(false);
     }
   }, [logs]);
-  
+
   // Delete a log
   const deleteLog = useCallback(async (id: string) => {
     try {
       setLoading(true);
-      
+
       const updatedLogs = logs.filter(log => log.id !== id);
       setLogs(updatedLogs);
-      
       await AsyncStorage.setItem('logs', JSON.stringify(updatedLogs));
     } catch (err) {
       setError('Failed to delete log');
@@ -184,17 +214,28 @@ export const LogsProvider: React.FC<LogsProviderProps> = ({ children }) => {
       setLoading(false);
     }
   }, [logs]);
-  
+
   // Get a log by ID
   const getLogById = useCallback((id: string) => {
     return logs.find(log => log.id === id) || null;
   }, [logs]);
-  
+
+  // Group logs by user
+  const logsByUser = useMemo(() => {
+    const map = new Map<string, Log[]>();
+    logs.forEach(log => {
+      const userLogs = map.get(log.userId) || [];
+      userLogs.push(log);
+      map.set(log.userId, userLogs);
+    });
+    return map;
+  }, [logs]);
+
   // Get logs by user ID
   const getLogsByUser = useCallback((userId: string) => {
-    return logs.filter(log => log.userId === userId);
-  }, [logs]);
-  
+    return logsByUser.get(userId) || [];
+  }, [logsByUser]);
+
   // Refresh logs - in a real app, this would fetch from a remote API
   const refreshLogs = useCallback(async () => {
     try {
@@ -202,7 +243,7 @@ export const LogsProvider: React.FC<LogsProviderProps> = ({ children }) => {
       // In a real app, we would fetch from an API here
       // For now, just load from storage
       const storedLogs = await AsyncStorage.getItem('logs');
-      
+
       if (storedLogs) {
         setLogs(JSON.parse(storedLogs));
       }
@@ -212,7 +253,7 @@ export const LogsProvider: React.FC<LogsProviderProps> = ({ children }) => {
       setLoading(false);
     }
   }, []);
-  
+
   return (
     <LogsContext.Provider
       value={{

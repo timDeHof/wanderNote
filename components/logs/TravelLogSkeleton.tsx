@@ -1,14 +1,13 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
+import { useTheme } from '@/hooks/useTheme';
 import Colors from '@/utils/colors';
-import Animated, { 
-  useSharedValue, 
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
   useAnimatedStyle,
-  withRepeat, 
-  withTiming, 
-  cancelAnimation, 
-  useAnimatedReaction
+  useSharedValue,
+  withRepeat,
+  withTiming
 } from 'react-native-reanimated';
 
 const TravelLogSkeleton = () => {
@@ -40,33 +39,33 @@ const TravelLogSkeleton = () => {
         { backgroundColor: Colors[theme].card }
       ]}
     >
-      <Animated.View 
+      <Animated.View
         style={[
           styles.image,
           { backgroundColor: Colors[theme].border },
           animatedStyle
         ]}
       />
-      
+
       <View style={styles.content}>
-        <Animated.View 
+        <Animated.View
           style={[
             styles.title,
             { backgroundColor: Colors[theme].border },
             animatedStyle
           ]}
         />
-        
+
         <View style={styles.meta}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.location,
               { backgroundColor: Colors[theme].border },
               animatedStyle
             ]}
           />
-          
-          <Animated.View 
+
+          <Animated.View
             style={[
               styles.date,
               { backgroundColor: Colors[theme].border },
@@ -74,33 +73,33 @@ const TravelLogSkeleton = () => {
             ]}
           />
         </View>
-        
-        <Animated.View 
+
+        <Animated.View
           style={[
             styles.rating,
             { backgroundColor: Colors[theme].border },
             animatedStyle
           ]}
         />
-        
+
         <View style={styles.tags}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.tag,
               { backgroundColor: Colors[theme].border },
               animatedStyle
             ]}
           />
-          
-          <Animated.View 
+
+          <Animated.View
             style={[
               styles.tag,
               { backgroundColor: Colors[theme].border },
               animatedStyle
             ]}
           />
-          
-          <Animated.View 
+
+          <Animated.View
             style={[
               styles.tag,
               { backgroundColor: Colors[theme].border },

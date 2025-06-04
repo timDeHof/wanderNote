@@ -1,21 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import * as Location from 'expo-location';
+import Button from '@/components/ui/Button';
 import { useTheme } from '@/hooks/useTheme';
 import Colors from '@/utils/colors';
-import { X, MapPin, Search } from 'lucide-react-native';
-import Button from '@/components/ui/Button';
-import { getDarkMapStyle } from '@/utils/mapStyles';
+import { getMapStyle } from '@/utils/mapStyles';
+import type { LocationGeocodedAddress } from 'expo-location';
+import * as Location from 'expo-location';
+import { MapPin, Search, X } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 type LocationPickerProps = {
   isVisible: boolean;
@@ -48,10 +51,17 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   const mapRef = useRef(null);
 
   useEffect(() => {
-    if (!location && isVisible) {
-      getCurrentLocation();
+    // Refresh local state whenever the modal is shown or the caller
+    // provides a new initialLocation.
+    if (isVisible) {
+      if (initialLocation) {
+        setLocation(initialLocation);
+      } else if (!location) {
+        getCurrentLocation();
+      }
     }
-  }, [isVisible]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible, initialLocation]);
 
   const getCurrentLocation = async () => {
     try {
@@ -59,7 +69,47 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
-        console.log('Permission to access location was denied');
+        const defaultLocation = {
+          latitude: 37.7749,
+          longitude: -122.4194, // San Francisco coordinates as default
+        };
+        setLocation(defaultLocation);
+
+        Alert.alert(
+          'Location Permission Required',
+          'We need access to your location to show you on the map. Please enable location permissions in your device settings.',
+          [
+            {
+              text: 'Continue with Default Location',
+              style: 'cancel',
+              onPress: async () => {
+                try {
+                  const [locationInfo] = await Location.reverseGeocodeAsync(defaultLocation);
+                  if (locationInfo) {
+                    setLocationName(formatLocationName(locationInfo));
+                  }
+                } catch (error) {
+                  console.error('Error getting location name:', error);
+                  setLocationName('San Francisco');
+                }
+              }
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                if (Platform.OS === 'ios') {
+                  Linking.openURL('app-settings:').catch(() => {
+                    console.error('Failed to open settings');
+                  });
+                } else {
+                  Linking.openSettings().catch(() => {
+                    console.error('Failed to open settings');
+                  });
+                }
+              },
+            },
+          ]
+        );
         return;
       }
 
@@ -84,8 +134,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       setLoading(false);
     }
   };
-
-  const formatLocationName = (locationInfo: { city: any; district?: string | null; streetNumber?: string | null; street?: string | null; region: any; subregion?: string | null; country: any; postalCode?: string | null; name: any; isoCountryCode?: string | null; timezone?: string | null; formattedAddress?: string | null; }) => {
+  const formatLocationName = (locationInfo: LocationGeocodedAddress): string => {
     const components = [];
 
     if (locationInfo.name) components.push(locationInfo.name);
@@ -104,15 +153,24 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       const results = await Location.geocodeAsync(searchQuery);
 
       if (results.length > 0) {
-        // Mock search results with names
-        // In a real app, you'd use a geocoding service with place names
-        const mockResults = results.map((result, index) => ({
-          ...result,
-          id: `result-${index}`,
-          name: `${searchQuery} ${index + 1}`,
-        }));
+        // Get place names for the coordinates using reverse geocoding
+        const detailedResults = await Promise.all(
+          results.map(async (result, index) => {
+            const [locationInfo] = await Location.reverseGeocodeAsync({
+              latitude: result.latitude,
+              longitude: result.longitude,
+            });
 
-        setSearchResults(mockResults);
+            return {
+              id: `result-${index}`,
+              name: locationInfo ? formatLocationName(locationInfo) : `${searchQuery} Location ${index + 1}`,
+              latitude: result.latitude,
+              longitude: result.longitude,
+            };
+          })
+        );
+
+        setSearchResults(detailedResults);
       } else {
         setSearchResults([]);
       }
@@ -120,6 +178,26 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       console.error('Error searching locations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearchResultPress = (result: SearchResult) => {
+    setLocation({
+      latitude: result.latitude,
+      longitude: result.longitude,
+    });
+    setLocationName(result.name);
+    setSearchResults([]); // Clear results after selection
+    setSearchQuery(''); // Clear search input
+
+    // Animate map to the selected location
+    if (mapRef.current) {
+      (mapRef.current as MapView).animateToRegion({
+        latitude: result.latitude,
+        longitude: result.longitude,
+        latitudeDelta: 0.0122,
+        longitudeDelta: 0.0121,
+      }, 250);
     }
   };
 
@@ -133,10 +211,26 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       coordinate: MapCoordinate;
     };
   }
-
   const handleMapPress = async (event: MapPressEvent) => {
     const { coordinate } = event.nativeEvent;
     setLocation(coordinate);
+
+    // Smoothly move the camera to the new point
+    if (mapRef.current) {
+      (mapRef.current as MapView).animateToRegion({
+        ...coordinate,
+        latitudeDelta: 0.0122,
+        longitudeDelta: 0.0121,
+      }, 250);
+    }
+    // Smoothly move the camera to the new point
+    if (mapRef.current) {
+      (mapRef.current as MapView).animateToRegion({
+        ...coordinate,
+        latitudeDelta: 0.0122,
+        longitudeDelta: 0.0121,
+      }, 250);
+    }
 
     try {
       const [locationInfo] = await Location.reverseGeocodeAsync(coordinate);
@@ -212,30 +306,49 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* Search Results List */}
+          {searchResults.length > 0 && (
+            <View
+              style={[
+                styles.searchResultsContainer,
+                { backgroundColor: Colors[theme].card }
+              ]}
+            >
+              {searchResults.map((result) => (
+                <TouchableOpacity
+                  key={result.id}
+                  style={[
+                    styles.searchResultItem,
+                    { borderBottomColor: Colors[theme].border }
+                  ]}
+                  onPress={() => handleSearchResultPress(result)}
+                >
+                  <MapPin size={16} color={Colors[theme].primary} style={styles.resultIcon} />
+                  <Text style={[styles.resultText, { color: Colors[theme].text }]}>
+                    {result.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={Colors[theme].primary} />
             </View>
           ) : (
-            <>
+            <View style={{ flex: 1 }}>
               <MapView
                 ref={mapRef}
                 style={styles.map}
                 provider={PROVIDER_GOOGLE}
-                initialRegion={
-                  location ? {
-                    ...location,
-                    latitudeDelta: 0.0922,
-                    longitudeDelta: 0.0421,
-                  } : {
-                    latitude: 37.78825,
-                    longitude: -122.4324,
-                    latitudeDelta: 0.0922,
-                    longitudeDelta: 0.0421,
-                  }
-                }
+                region={location ? {
+                  ...location,
+                  latitudeDelta: 0.0122,
+                  longitudeDelta: 0.0121,
+                } : undefined}
                 onPress={handleMapPress}
-                customMapStyle={theme === 'dark' ? getDarkMapStyle() : []}
+                customMapStyle={theme === 'dark' ? getMapStyle() : []}
               >
                 {location && (
                   <Marker
@@ -244,24 +357,24 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
                   />
                 )}
               </MapView>
-
-              <View
-                style={[
-                  styles.locationInfoContainer,
-                  { borderColor: Colors[theme].border }
-                ]}
-              >
-                <MapPin size={16} color={Colors[theme].primary} style={styles.locationIcon} />
-                <TextInput
-                  style={[styles.locationNameInput, { color: Colors[theme].text }]}
-                  placeholder="Enter location name..."
-                  placeholderTextColor={Colors[theme].textSecondary}
-                  value={locationName}
-                  onChangeText={setLocationName}
-                />
-              </View>
-            </>
+            </View>
           )}
+
+          <View
+            style={[
+              styles.locationInfoContainer,
+              { borderColor: Colors[theme].border }
+            ]}
+          >
+            <MapPin size={16} color={Colors[theme].primary} style={styles.locationIcon} />
+            <TextInput
+              style={[styles.locationNameInput, { color: Colors[theme].text }]}
+              placeholder="Enter location name..."
+              placeholderTextColor={Colors[theme].textSecondary}
+              value={locationName}
+              onChangeText={setLocationName}
+            />
+          </View>
 
           <View style={styles.buttonContainer}>
             <Button
@@ -332,6 +445,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  searchResultsContainer: {
+    maxHeight: 200,
+    borderRadius: 8,
+    marginBottom: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+  },
+  resultIcon: {
+    marginRight: 8,
+  },
+  resultText: {
+    flex: 1,
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
   },
   loadingContainer: {
     flex: 1,

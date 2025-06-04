@@ -21,6 +21,11 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   const { theme } = useTheme();
   const [selectedDate, setSelectedDate] = useState(date);
 
+  // keep internal state in sync with prop
+  React.useEffect(() => {
+    setSelectedDate(date);
+  }, [date]);
+
   // If this is rendered on web, we can rely on the browser's date picker
   if (Platform.OS === 'web') {
     return (
@@ -141,6 +146,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
         if (event.type === 'dismissed') {
           onCancel();
         } else if (date) {
+          setSelectedDate(date);
           onConfirm(date);
         }
       }}

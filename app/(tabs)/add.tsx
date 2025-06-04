@@ -1,28 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import LocationPicker from '@/components/logs/LocationPicker';
+import TagSelector from '@/components/logs/TagSelector';
+import Button from '@/components/ui/Button';
+import DateTimePicker from '@/components/ui/DateTimePicker';
+import { useAuth } from '@/hooks/useAuth';
+import { useLogs } from '@/hooks/useLogs';
+import { useTheme } from '@/hooks/useTheme';
+import Colors from '@/utils/colors';
+import { formatDate } from '@/utils/helpers';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import { Calendar, Camera, Image as ImageIcon, MapPin, Star, Tag } from 'lucide-react-native';
+import React, { useState } from 'react';
 import {
-  View,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  Platform,
-  KeyboardAvoidingView,
-  Image,
+  View,
 } from 'react-native';
-import { useTheme } from '@/hooks/useTheme';
-import { useLogs } from '@/hooks/useLogs';
-import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'expo-router';
-import Colors from '@/utils/colors';
-import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
-import { Camera, MapPin, Calendar, Star, Tag, Image as ImageIcon } from 'lucide-react-native';
-import { formatDate } from '@/utils/helpers';
-import DateTimePicker from '@/components/ui/DateTimePicker';
-import TagSelector from '@/components/logs/TagSelector';
-import LocationPicker from '@/components/logs/LocationPicker';
-import Button from '@/components/ui/Button';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 interface Coordinates {
@@ -48,19 +47,6 @@ export default function AddScreen() {
   const [showTagSelector, setShowTagSelector] = useState<boolean>(false);
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [error, setError] = useState<string>('');
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setCoordinates({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        });
-      }
-    })();
-  }, []);
 
   const pickImages = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -235,8 +221,8 @@ export default function AddScreen() {
                   >
                     <Star
                       size={32}
-                      color={star <= rating ? '#FFD700' : Colors[theme].border}
-                      fill={star <= rating ? '#FFD700' : 'transparent'}
+                      color={star <= rating ? Colors[theme].starFilled : Colors[theme].border}
+                      fill={star <= rating ? Colors[theme].starFilled : 'transparent'}
                       style={{ marginRight: 8 }}
                     />
                   </TouchableOpacity>
@@ -350,7 +336,7 @@ export default function AddScreen() {
             </View>
 
             {error ? (
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={[styles.errorText, { color: Colors[theme].danger }]}>{error}</Text>
             ) : null}
 
             <Button
@@ -543,7 +529,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   errorText: {
-    color: '#E53935',
     marginTop: 16,
     fontFamily: 'Poppins-Regular',
   },

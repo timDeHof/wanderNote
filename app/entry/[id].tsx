@@ -1,36 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Share,
-  Platform,
-  Alert,
-} from 'react-native';
-import { useTheme } from '@/hooks/useTheme';
-import { useLogs } from '@/hooks/useLogs';
+import DeleteConfirmationModal from '@/components/modals/DeleteConfirmationModal';
 import { Log } from '@/context/LogsContext';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLogs } from '@/hooks/useLogs';
+import { useTheme } from '@/hooks/useTheme';
 import Colors from '@/utils/colors';
+import { formatDate } from '@/utils/helpers';
+import { getDarkMapStyle } from '@/utils/mapStyles';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowLeft,
-  MapPin,
   Calendar,
-  Star,
-  Share2,
-  Edit,
-  Trash,
   ChevronLeft,
   ChevronRight,
+  Edit,
+  MapPin,
+  Share2,
+  Star,
+  Trash,
 } from 'lucide-react-native';
-import { formatDate } from '@/utils/helpers';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  Image,
+  Linking,
+  Platform,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import DeleteConfirmationModal from '@/components/modals/DeleteConfirmationModal';
-import { getDarkMapStyle } from '@/utils/mapStyles';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export default function EntryDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -52,57 +53,51 @@ export default function EntryDetailsScreen() {
         router.replace('/');
       }
     }
-  }, [id, getLogById]);
+  }, [id, getLogById, router]);
 
-  if (!log) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: Colors[theme].background }]}>
-        <Text style={[styles.loadingText, { color: Colors[theme].text }]}>Loading...</Text>
-      </View>
-    );
-  }
-
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
+    if (!log) return;
     try {
       await Share.share({
         message: `Check out my travel to ${log.location}! ${log.title}`,
       });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Could not share this log');
     }
-  };
+  }, [log]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(() => {
     setShowDeleteConfirmation(true);
-  };
+  }, []);
 
-  const confirmDelete = async () => {
+  const confirmDelete = useCallback(async () => {
+    if (!log) return;
     try {
       await deleteLog(log.id);
       router.replace('/');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Could not delete this log');
     }
-  };
+  }, [log, deleteLog, router]);
 
-    const navigateToEdit = () => {
-    const editPath = `/edit/${log.id}`;
-    router.push(editPath as any);
-  };
+  const navigateToEdit = useCallback(() => {
+    if (!log) return;
+    router.push(`/edit/${log.id}` as any);
+  }, [log, router]);
 
-  const handlePrevImage = () => {
+  const handlePrevImage = useCallback(() => {
     if (selectedImageIndex > 0) {
       setSelectedImageIndex(selectedImageIndex - 1);
     }
-  };
+  }, [selectedImageIndex]);
 
-  const handleNextImage = () => {
-    if (selectedImageIndex < log.images.length - 1) {
+  const handleNextImage = useCallback(() => {
+    if (log?.images && selectedImageIndex < log.images.length - 1) {
       setSelectedImageIndex(selectedImageIndex + 1);
     }
-  };
+  }, [log, selectedImageIndex]);
 
-  const renderRatingStars = (rating: number) => {
+  const renderRatingStars = useCallback((rating: number) => {
     return (
       <View style={styles.ratingContainer}>
         {[1, 2, 3, 4, 5].map((star: number) => (
@@ -115,7 +110,17 @@ export default function EntryDetailsScreen() {
         ))}
       </View>
     );
-  };
+  }, [theme]);
+
+  if (!log) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: Colors[theme].background }]}>
+        <Text style={[styles.loadingText, { color: Colors[theme].text }]}>
+          {loading ? 'Loading...' : 'Entry not found'}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
@@ -274,7 +279,6 @@ export default function EntryDetailsScreen() {
             <Text style={[styles.mapTitle, { color: Colors[theme].text }]}>
               Location
             </Text>
-
             <MapView
               style={styles.map}
               provider={PROVIDER_GOOGLE}
@@ -287,6 +291,13 @@ export default function EntryDetailsScreen() {
               scrollEnabled={false}
               zoomEnabled={false}
               rotateEnabled={false}
+              onPress={() => {
+                const url = Platform.select({
+                  ios: `maps://app?q=${log.latitude},${log.longitude}`,
+                  android: `geo:${log.latitude},${log.longitude}?q=${log.latitude},${log.longitude}`
+                });
+                if (url) Linking.openURL(url);
+              }}
               customMapStyle={theme === 'dark' ? getDarkMapStyle() : []}
             >
               <Marker

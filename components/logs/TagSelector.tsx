@@ -8,7 +8,7 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
+import { useTheme } from '@/hooks/useTheme';
 import Colors from '@/utils/colors';
 import { getTravelCategories } from '@/utils/helpers';
 import Button from '@/components/ui/Button';
@@ -30,9 +30,9 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   const { theme } = useTheme();
   const [tags, setTags] = useState<string[]>(selectedTags);
   const [customTag, setCustomTag] = useState('');
-  
+
   const predefinedTags = getTravelCategories();
-  
+
   const toggleTag = (tag: string) => {
     if (tags.includes(tag)) {
       setTags(tags.filter(t => t !== tag));
@@ -40,14 +40,14 @@ const TagSelector: React.FC<TagSelectorProps> = ({
       setTags([...tags, tag]);
     }
   };
-  
+
   const addCustomTag = () => {
     if (customTag.trim() && !tags.includes(customTag.trim())) {
       setTags([...tags, customTag.trim()]);
       setCustomTag('');
     }
   };
-  
+
   const handleConfirm = () => {
     onSelectTags(tags);
   };
@@ -60,7 +60,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
-        <View 
+        <View
           style={[
             styles.modalContent,
             { backgroundColor: Colors[theme].card }
@@ -74,11 +74,11 @@ const TagSelector: React.FC<TagSelectorProps> = ({
               <X size={24} color={Colors[theme].text} />
             </TouchableOpacity>
           </View>
-          
-          <View 
+
+          <View
             style={[
-              styles.customTagInput, 
-              { 
+              styles.customTagInput,
+              {
                 backgroundColor: Colors[theme].inputBackground,
                 borderColor: Colors[theme].border,
               }
@@ -93,13 +93,13 @@ const TagSelector: React.FC<TagSelectorProps> = ({
               onSubmitEditing={addCustomTag}
             />
             <TouchableOpacity onPress={addCustomTag} disabled={!customTag.trim()}>
-              <Plus 
-                size={20} 
-                color={customTag.trim() ? Colors[theme].primary : Colors[theme].textSecondary} 
+              <Plus
+                size={20}
+                color={customTag.trim() ? Colors[theme].primary : Colors[theme].textSecondary}
               />
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.tagList} contentContainerStyle={styles.tagListContent}>
             <View style={styles.selectedTagsContainer}>
               {tags.length > 0 ? (
@@ -132,7 +132,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                 </Text>
               )}
             </View>
-            
+
             <View style={styles.tagsGroup}>
               <Text style={[styles.tagGroupTitle, { color: Colors[theme].textSecondary }]}>
                 Suggested Tags
@@ -145,7 +145,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                       styles.tag,
                       tags.includes(tag)
                         ? { backgroundColor: Colors[theme].primary }
-                        : { 
+                        : {
                             backgroundColor: Colors[theme].primaryLight,
                             borderColor: Colors[theme].primary,
                             borderWidth: 1,
@@ -157,7 +157,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                       style={[
                         tags.includes(tag)
                           ? styles.selectedTagText
-                          : { 
+                          : {
                               color: Colors[theme].primary,
                               fontFamily: 'Poppins-Medium',
                             }
@@ -170,7 +170,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
               </View>
             </View>
           </ScrollView>
-          
+
           <View style={styles.buttonContainer}>
             <Button
               title="Confirm"

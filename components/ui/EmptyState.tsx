@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
+import { useTheme } from '@/hooks/useTheme';
 import Colors from '@/utils/colors';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 type EmptyStateProps = {
   icon: React.ReactNode;
@@ -15,7 +15,10 @@ const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, message }) => {
   return (
     <View style={styles.container}>
       {icon}
-      <Text style={[styles.title, { color: Colors[theme].text }]}>
+      <Text
+        style={[styles.title, { color: Colors[theme].text }]}
+        accessibilityRole="header"
+      >
         {title}
       </Text>
       <Text style={[styles.message, { color: Colors[theme].textSecondary }]}>
@@ -28,8 +31,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, message }) => {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
+    textAlign: 'center',
   },
   title: {
     fontSize: 18,
@@ -42,6 +44,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 8,
     textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

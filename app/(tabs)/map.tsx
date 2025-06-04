@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, Dimensions } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { useTheme } from '@/context/ThemeContext';
+import LogCardModal from '@/components/logs/LogCardModal';
 import { useLogs } from '@/hooks/useLogs';
+import { Log } from '@/context/LogsContext';
+import { useTheme } from '@/hooks/useTheme';
 import Colors from '@/utils/colors';
+import { getDarkMapStyle } from '@/utils/mapStyles';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { MapPin, Compass, Search, List } from 'lucide-react-native';
-import LogCardModal from '@/components/logs/LogCardModal';
-import { getDarkMapStyle } from '@/utils/mapStyles';
+import { Compass, List, MapPin, Search } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import MapView, { MapType, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 const { width } = Dimensions.get('window');
 
@@ -16,28 +17,40 @@ export default function MapScreen() {
   const { theme } = useTheme();
   const { logs } = useLogs();
   const router = useRouter();
-  const mapRef = useRef(null);
-  const [userLocation, setUserLocation] = useState(null);
-  const [selectedLog, setSelectedLog] = useState(null);
+  const mapRef = useRef<MapView | null>(null);
+  interface UserLocation {
+    latitude: number;
+    longitude: number;
+  }
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [selectedLog, setSelectedLog] = useState<Log | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [mapType, setMapType] = useState('standard');
+  const [mapType, setMapType] = useState<MapType>('standard');
+
 
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
+        // Consider showing a toast or alert to inform the user
+        console.warn('Location permission not granted');
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
-      setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
+      try {
+        const location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+      } catch (error) {
+        console.warn('Failed to get current location:', error);
+      }
     })();
   }, []);
 
-  const handleMarkerPress = (log) => {
+
+  const handleMarkerPress = (log: Log): void => {
     setSelectedLog(log);
     setShowModal(true);
   };
@@ -50,18 +63,22 @@ export default function MapScreen() {
         longitudeDelta: 0.01,
       }, 1000);
     }
-  };
-
-  const toggleMapType = () => {
+    const toggleMapType = () => {
+      setMapType(mapType === 'standard' ? 'satellite' : 'standard' as MapType);
+    };
     setMapType(mapType === 'standard' ? 'satellite' : 'standard');
   };
 
   const navigateToSearch = () => {
-    router.push('/search');
+    router.push('/search' as any);
   };
 
   const navigateToLogList = () => {
     router.push('/');
+  };
+
+  const toggleMapType = () => {
+    setMapType(mapType === 'standard' ? 'satellite' : 'standard');
   };
 
   return (
@@ -73,16 +90,16 @@ export default function MapScreen() {
         initialRegion={
           userLocation
             ? {
-                ...userLocation,
-                latitudeDelta: 0.0922,
-                longitudeDelta: 0.0421,
-              }
+              ...userLocation,
+              latitudeDelta: 0.0922,
+              longitudeDelta: 0.0421,
+            }
             : {
-                latitude: 37.78825,
-                longitude: -122.4324,
-                latitudeDelta: 0.0922,
-                longitudeDelta: 0.0421,
-              }
+              latitude: 37.78825,
+              longitude: -122.4324,
+              latitudeDelta: 0.0922,
+              longitudeDelta: 0.0421,
+            }
         }
         mapType={mapType}
         customMapStyle={theme === 'dark' ? getDarkMapStyle() : []}
@@ -117,7 +134,7 @@ export default function MapScreen() {
           </Marker>
         )}
       </MapView>
-      
+
       <View style={styles.controls}>
         <TouchableOpacity
           style={[
@@ -128,7 +145,7 @@ export default function MapScreen() {
         >
           <Compass size={20} color={Colors[theme].primary} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.controlButton,
@@ -138,7 +155,7 @@ export default function MapScreen() {
         >
           <MapPin size={20} color={Colors[theme].primary} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.controlButton,
@@ -148,7 +165,7 @@ export default function MapScreen() {
         >
           <Search size={20} color={Colors[theme].primary} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.controlButton,
@@ -159,7 +176,7 @@ export default function MapScreen() {
           <List size={20} color={Colors[theme].primary} />
         </TouchableOpacity>
       </View>
-      
+
       {selectedLog && (
         <LogCardModal
           visible={showModal}

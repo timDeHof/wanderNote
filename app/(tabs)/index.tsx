@@ -1,25 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  Image,
-  Platform,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/hooks/useTheme';
-import { useLogs } from '@/hooks/useLogs';
-import { useAuth } from '@/hooks/useAuth';
-import Colors from '@/utils/colors';
-import { MapPin, Calendar, Star, Plus } from 'lucide-react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { formatDate } from '@/utils/helpers';
-import SearchBar from '@/components/ui/SearchBar';
 import TravelLogSkeleton from '@/components/logs/TravelLogSkeleton';
 import EmptyState from '@/components/ui/EmptyState';
+import SearchBar from '@/components/ui/SearchBar';
+import { useAuth } from '@/hooks/useAuth';
+import { useLogs } from '@/hooks/useLogs';
+import { useTheme } from '@/hooks/useTheme';
+import Colors from '@/utils/colors';
+import { formatDate } from '@/utils/helpers';
+import { useRouter } from 'expo-router';
+import { Calendar, MapPin, Plus, Star } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  FlatList,
+  Image,
+  Platform,
+  RefreshControl,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 interface Log {
   id: string;
@@ -32,6 +34,39 @@ interface Log {
   rating: number;
 }
 
+interface StarRatingProps {
+  rating: number;
+  size?: number;
+  style?: StyleProp<ViewStyle>;
+}
+
+const StarRating: React.FC<StarRatingProps> = ({ rating, size = 16, style }) => {
+  const { theme } = useTheme();
+
+  return (
+    <View style={[styles.ratingContainer, style]}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <View key={star} style={{ position: 'relative', marginRight: star < 5 ? 4 : 0 }}>
+          {/* Base (unfilled) star */}
+          <Star size={size} color={Colors[theme].border} />
+          {/* Filled star overlay */}
+          {star <= rating && (
+            <Star
+              size={size}
+              color={Colors[theme].starFilled}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+              }}
+            />
+          )}
+        </View>
+      ))}
+    </View>
+  );
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const { theme } = useTheme();
@@ -39,43 +74,23 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredLogs, setFilteredLogs] = useState<Log[]>(logs as Log[]);
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredLogs(logs as Log[]);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = (logs as Log[]).filter(
-        (log: Log) =>
-          log.title.toLowerCase().includes(query) ||
-          log.location.toLowerCase().includes(query) ||
-          log.description.toLowerCase().includes(query) ||
-          log.tags.some((tag: string) => tag.toLowerCase().includes(query))
-      );
-      setFilteredLogs(filtered);
-    }
+  const filteredLogs = useMemo(() => {
+    if (!searchQuery.trim()) return logs as Log[];
+    const query = searchQuery.toLowerCase();
+    return (logs as Log[]).filter(
+      (log: Log) =>
+        log.title?.toLowerCase().includes(query) ||
+        log.location?.toLowerCase().includes(query) ||
+        log.description?.toLowerCase().includes(query) ||
+        log.tags?.some((tag) => tag.toLowerCase().includes(query))
+    );
   }, [logs, searchQuery]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshLogs();
     setRefreshing(false);
-  };
-
-  const renderRatingStars = (rating: number) => {
-    return (
-      <View style={styles.ratingContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            size={16}
-            color={star <= rating ? '#FFD700' : Colors[theme].border}
-            fill={star <= rating ? '#FFD700' : 'transparent'}
-          />
-        ))}
-      </View>
-    );
   };
 
   const renderLogItem = ({ item }: { item: Log }) => {
@@ -120,7 +135,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {renderRatingStars(item.rating)}
+            <StarRating rating={item.rating} />
 
             <View style={styles.tagsContainer}>
               {item.tags.map((tag: string, index: number) => (
